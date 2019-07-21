@@ -66,8 +66,14 @@ yap_to_ud = {
      'ZVL': 'X',
      'NEG': 'RB',
      'TTL': 'NOUN',
-     'NNPT': 'PROPN'
+     'NNPT': 'PROPN',
+     ' PREPOSITION': 'ADP', 
+     '??': 'X', 
+     'DUMMY_AT': 'PART',
+     'PREPOSITIONIN': 'ADP',
+     'S_ANP': 'X',
     }
+
 
 embed_dim=300
 

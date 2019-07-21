@@ -69,8 +69,8 @@ yap_to_ud = {
      'NNPT': 'PROPN',
      ' PREPOSITION': 'ADP', 
      '??': 'X', 
-     'DUMMY_AT', 'PART',
-     'PREPOSITIONIN', 'ADP',
+     'DUMMY_AT': 'PART',
+     'PREPOSITIONIN': 'ADP',
      'S_ANP': 'X',
     }
 
