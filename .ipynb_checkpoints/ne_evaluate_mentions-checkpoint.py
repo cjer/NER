@@ -2,18 +2,20 @@ from collections import defaultdict
 from itertools import islice
 import pandas as pd
 
-def evaluate_mentions(true_ments, pred_ments, examples=5):
+def evaluate_mentions(true_ments, pred_ments, examples=5, verbose=True):
     t, p = set(true_ments), set(pred_ments)
     correct = p.intersection(t)
-    print(len(t), 'mentions,', len(p), 'found,', len(correct), 'correct.')
+
     prec = len(correct) / len(t)
     recall = len(correct) / len(p)
     f1 = 2*prec*recall/(prec+recall)
-    print('Precision:', round(prec, 2))
-    print('Recall:   ', round(recall, 2))
-    print('F1:       ', round(f1, 2))
-    print('FP ex.:', [e[1] for e in list(p-t)[:examples]])
-    print('FN ex.:', [e[1] for e in list(t-p)[:examples]])
+    if verbose:
+        print(len(t), 'mentions,', len(p), 'found,', len(correct), 'correct.')
+        print('Precision:', round(prec, 2))
+        print('Recall:   ', round(recall, 2))
+        print('F1:       ', round(f1, 2))
+        print('FP ex.:', [e[1] for e in list(p-t)[:examples]])
+        print('FN ex.:', [e[1] for e in list(t-p)[:examples]])
     return prec, recall, f1
         
         

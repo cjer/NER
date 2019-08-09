@@ -123,7 +123,19 @@ embedding_paths = {
     'token_ft_sg':    '../wordembedding-hebrew/wikipedia.tokenized.fasttext_skipgram.model.vec',
     'token_ft_cbow':  '../wordembedding-hebrew/wikipedia.tokenized.fasttext_cbow.model.vec',
     # pretrained
-    'pretrained_token_ft':    '../fasttext/wiki.he.vec'
+    'pretrained_token_ft':    '../fasttext/wiki.he.vec',
+    #wikipedia alternative tokenization YAP form
+    'alt_tok_yap_w2v_sg':   '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.word2vec_skipgram.txt',
+    'alt_tok_yap_w2v_cbow': '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.word2vec_cbow.txt',
+    'alt_tok_yap_glove':    '../wordembedding-hebrew/glove/wikipedia.alt_tok.yap_form.glove.txt',
+    'alt_tok_yap_ft_sg':    '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.fasttext_skipgram.model.vec',
+    'alt_tok_yap_ft_cbow':  '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.fasttext_cbow.model.vec',
+    #wikipedia.tokenized alternative tokenization
+    'alt_tok_token_w2v_sg':   '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.word2vec_skipgram.txt',
+    'alt_tok_token_w2v_cbow': '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.word2vec_cbow.txt',
+    'alt_tok_token_glove':    '../wordembedding-hebrew/glove/wikipedia.alt_tok.tokenized.glove.txt',
+    'alt_tok_token_ft_sg':    '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.fasttext_skipgram.model.vec',
+    'alt_tok_token_ft_cbow':  '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.fasttext_cbow.model.vec',
 }
 
 
@@ -268,7 +280,7 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
                  epochs=100, early_stopping=True, patience=20, min_delta=0.0001,
                  use_char=False, crf=False, add_random_embedding=True, pretrained_embed_dim=300,
                  stack_cross=False, stack_double=False, rec_dropout=0.1,
-                 validation_split=0.1,
+                 validation_split=0.1, output_dropout=False, optimizer='rmsprop',
                  verbose=2):
     X_tr, X_te, y_tr, y_te, pos_tr, pos_te = words
     X_char_tr, X_char_te, _, _ = chars
@@ -331,7 +343,10 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
         model = concatenate([back, front])
     for i in range(stack_lstm):
         model = Bidirectional(LSTM(units=100, return_sequences=True, recurrent_dropout=rec_dropout))(model)
-
+        
+    if output_dropout:
+        model = Dropout(0.1)(model)
+        
     if crf:
         model = TimeDistributed(Dense(50, activation="relu"))(model)  # a dense layer as suggested by neuralNer
         crf = CRF(n_tags+1)
@@ -346,7 +361,7 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
         monitor = 'val_acc'
 
     model = Model(all_inputs, out)
-    model.compile(optimizer="rmsprop", loss=loss, metrics=[metric])
+    model.compile(optimizer=optimizer, loss=loss, metrics=[metric])
     if early_stopping:
         es = [EarlyStopping(monitor=monitor, mode='max', verbose=1, patience=patience, restore_best_weights=True, min_delta=min_delta)]
     else:
@@ -376,6 +391,32 @@ base_configs = [
             {'use_char': True, 'crf': True, 'use_pos': True},
             {'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': True, 'embed_dim': embed_dim},
             {'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all', 'trainable': True, 'embed_dim': embed_dim},
+          ]
+
+base_configs_fixed = [
+            {'add_random_embedding': True, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'embed_dim': 100},
+            {'add_random_embedding': True, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all', 'trainable': False, 'embed_dim': 100},
+          ]
+base_configs_stack = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all',  'trainable': False, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': True, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all', 'trainable': True, 'stack_lstm': 2},
+          ]
+
+base_configs_stack2 = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': True, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all', 'trainable': True, 'stack_lstm': 2},
+          ]
+
+base_configs_stack_freeze = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all',  'trainable': False, 'stack_lstm': 2},
+          ]
+
+base_configs_stack_freeze_input_dropout = [
+            {'input_dropout': True, 'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+            {'input_dropout': True, 'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all',  'trainable': False, 'stack_lstm': 2},
           ]
 
 def build_configs(configs, embedding_mats):
