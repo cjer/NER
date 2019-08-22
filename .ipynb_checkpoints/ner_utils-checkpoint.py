@@ -111,31 +111,34 @@ def initialize_random_seeds():
 
 embedding_paths = {
     #wikipedia YAP form
-    'yap_w2v_sg':   '../wordembedding-hebrew/wikipedia.yap_form.word2vec_skipgram.txt',
-    'yap_w2v_cbow': '../wordembedding-hebrew/wikipedia.yap_form.word2vec_cbow.txt',
-    'yap_glove':    '../wordembedding-hebrew/glove/wikipedia.yap_form.glove.txt.txt',
-    'yap_ft_sg':    '../wordembedding-hebrew/wikipedia.yap_form.fasttext_skipgram.model.vec',
-    'yap_ft_cbow':  '../wordembedding-hebrew/wikipedia.yap_form.fasttext_cbow.model.vec',
+    'yap_w2v_sg':   '../wordembedding-hebrew/vectors_orig_tok/wikipedia.yap_form.word2vec_skipgram.txt',
+    'yap_w2v_cbow': '../wordembedding-hebrew/vectors_orig_tok/wikipedia.yap_form.word2vec_cbow.txt',
+    'yap_glove':    '../wordembedding-hebrew/vectors_orig_tok/wikipedia.yap_form.glove.txt',
+    'yap_ft_sg':    '../wordembedding-hebrew/vectors_orig_tok/wikipedia.yap_form.fasttext_skipgram.model.vec',
+    'yap_ft_cbow':  '../wordembedding-hebrew/vectors_orig_tok/wikipedia.yap_form.fasttext_cbow.model.vec',
     # wikipedia.tokenized
-    'token_w2v_sg':   '../wordembedding-hebrew/wikipedia.tokenized.word2vec_skipgram.txt',
-    'token_w2v_cbow': '../wordembedding-hebrew/wikipedia.tokenized.word2vec_cbow.txt',
-    'token_glove':    '../wordembedding-hebrew/glove/wikipedia.tokenized.glove.txt',
-    'token_ft_sg':    '../wordembedding-hebrew/wikipedia.tokenized.fasttext_skipgram.model.vec',
-    'token_ft_cbow':  '../wordembedding-hebrew/wikipedia.tokenized.fasttext_cbow.model.vec',
+    'token_w2v_sg':   '../wordembedding-hebrew/vectors_orig_tok/wikipedia.tokenized.word2vec_skipgram.txt',
+    'token_w2v_cbow': '../wordembedding-hebrew/vectors_orig_tok/wikipedia.tokenized.word2vec_cbow.txt',
+    'token_glove':    '../wordembedding-hebrew/vectors_orig_tok/wikipedia.tokenized.glove.txt',
+    'token_ft_sg':    '../wordembedding-hebrew/vectors_orig_tok/wikipedia.tokenized.fasttext_skipgram.model.vec',
+    'token_ft_cbow':  '../wordembedding-hebrew/vectors_orig_tok/wikipedia.tokenized.fasttext_cbow.model.vec',
     # pretrained
     'pretrained_token_ft':    '../fasttext/wiki.he.vec',
     #wikipedia alternative tokenization YAP form
-    'alt_tok_yap_w2v_sg':   '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.word2vec_skipgram.txt',
-    'alt_tok_yap_w2v_cbow': '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.word2vec_cbow.txt',
-    'alt_tok_yap_glove':    '../wordembedding-hebrew/glove/wikipedia.alt_tok.yap_form.glove.txt',
-    'alt_tok_yap_ft_sg':    '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.fasttext_skipgram.model.vec',
-    'alt_tok_yap_ft_cbow':  '../wordembedding-hebrew/wikipedia.alt_tok.yap_form.fasttext_cbow.model.vec',
+    'alt_tok_yap_w2v_sg':   '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.word2vec_skipgram.txt',
+    'alt_tok_yap_w2v_cbow': '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.word2vec_cbow.txt',
+    'alt_tok_yap_glove':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.glove.txt',
+    'alt_tok_yap_ft_sg':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_skipgram.model.vec',
+    'alt_tok_yap_ft_cbow':  '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_cbow.model.vec',
     #wikipedia.tokenized alternative tokenization
-    'alt_tok_token_w2v_sg':   '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.word2vec_skipgram.txt',
-    'alt_tok_token_w2v_cbow': '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.word2vec_cbow.txt',
-    'alt_tok_token_glove':    '../wordembedding-hebrew/glove/wikipedia.alt_tok.tokenized.glove.txt',
-    'alt_tok_token_ft_sg':    '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.fasttext_skipgram.model.vec',
-    'alt_tok_token_ft_cbow':  '../wordembedding-hebrew/wikipedia.alt_tok.tokenized.fasttext_cbow.model.vec',
+    'alt_tok_token_w2v_sg':   '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.tokenized.word2vec_skipgram.txt',
+    'alt_tok_token_w2v_cbow': '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.tokenized.word2vec_cbow.txt',
+    'alt_tok_token_glove':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.tokenized.glove.txt',
+    'alt_tok_token_ft_sg':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.tokenized.fasttext_skipgram.model.vec',
+    'alt_tok_token_ft_cbow':  '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.tokenized.fasttext_cbow.model.vec',
+    #wikipedia alternative tokenization YAP form deduped and tuned
+    'alt_tok_tuned_yap_ft_sg':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_skipgram.tuned.model.vec',
+    #'alt_tok_tuned_yap_ft_cbow':  '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_cbow.tuned.model.vec',
 }
 
 
