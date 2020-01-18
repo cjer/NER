@@ -78,23 +78,23 @@ yap_to_ud = {
 embed_dim=300
 
 
-def initialize_random_seeds(): 
+def initialize_random_seeds(seed=42): 
     # The below is necessary for starting Numpy generated random numbers
     # in a well-defined initial state.
 
-    np.random.seed(42)
+    np.random.seed(seed)
 
     # The below is necessary for starting core Python generated random numbers
     # in a well-defined state.
 
-    rn.seed(12345)
+    rn.seed(seed)
 
     # Force TensorFlow to use single thread.
     # Multiple threads are a potential source of non-reproducible results.
     # For further details, see: https://stackoverflow.com/questions/42022950/
 
-    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
-                                  inter_op_parallelism_threads=1)
+    #session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
+    #                             inter_op_parallelism_threads=1)
 
     from keras import backend as K
 
@@ -124,6 +124,8 @@ embedding_paths = {
     'token_ft_cbow':  '../wordembedding-hebrew/vectors_orig_tok/wikipedia.tokenized.fasttext_cbow.model.vec',
     # pretrained
     'pretrained_token_ft':    '../fasttext/wiki.he.vec',
+    'pretrained_token_ft_cc':    '../fasttext/cc.he.300.vec',
+
     #wikipedia alternative tokenization YAP form
     'alt_tok_yap_w2v_sg':   '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.word2vec_skipgram.txt',
     'alt_tok_yap_w2v_cbow': '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.word2vec_cbow.txt',
@@ -138,11 +140,15 @@ embedding_paths = {
     'alt_tok_token_ft_cbow':  '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.tokenized.fasttext_cbow.model.vec',
     #wikipedia alternative tokenization YAP form deduped and tuned
     'alt_tok_tuned_yap_ft_sg':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_skipgram.tuned.model.vec',
-    #'alt_tok_tuned_yap_ft_cbow':  '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_cbow.tuned.model.vec',
+    'alt_tok_tuned_yap_ft_cbow':  '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.fasttext_cbow.tuned.model.vec',
+    'alt_tok_tuned_yap_w2v_sg':   '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.word2vec_skipgram.tuned.txt',
+    'alt_tok_tuned_yap_w2v_cbow': '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.word2vec_cbow.tuned.txt',
+    'alt_tok_tuned_yap_glove':    '../wordembedding-hebrew/vectors_alt_tok/wikipedia.alt_tok.yap_form.glove.tuned.txt',
+
 }
 
 
-def get_embedding_matrix(path, word2idx, embed_dim=300, MAX_NB_WORDS=200000):
+def get_embedding_matrix(path, word2idx, embed_dim=300, MAX_NB_WORDS=200000, lower_case=False):
     #load embeddings
     print('loading word embeddings:', path)
     embeddings_index = {}
@@ -162,6 +168,8 @@ def get_embedding_matrix(path, word2idx, embed_dim=300, MAX_NB_WORDS=200000):
         if i >= nb_words:
             continue
         embedding_vector = embeddings_index.get(word.strip('_'))
+        if lower_case and embedding_vector is None:
+            embedding_vector = embeddings_index.get(word.lower())
         if (embedding_vector is not None) and len(embedding_vector) > 0:
             # words not found in embedding index will be all-zeros.
             embedding_matrix[i] = embedding_vector
@@ -170,6 +178,25 @@ def get_embedding_matrix(path, word2idx, embed_dim=300, MAX_NB_WORDS=200000):
     print('number of null word embeddings: %d' % np.sum(np.sum(embedding_matrix, axis=1) == 0))
     print("sample words not found: ", np.random.choice(words_not_found, 10))
     return embedding_matrix
+
+
+from gensim.models.fasttext import load_facebook_model
+
+def get_embedding_matrix_from_fasttext_model(path, word2idx, embed_dim=300, MAX_NB_WORDS=200000):
+    model = load_facebook_model(path)
+    nb_words = min(MAX_NB_WORDS, len(word2idx))
+
+    embedding_matrix = np.zeros((nb_words, embed_dim))
+
+    for word, i in word2idx.items():
+        if i >= nb_words:
+            continue
+        embedding_vector = model.wv[word.strip('_')]
+        if (embedding_vector is not None) and len(embedding_vector) > 0:
+            # words not found in embedding index will be all-zeros.
+            embedding_matrix[i] = embedding_vector
+    return embedding_matrix
+
 
 def plot_histories(histories, crf=False, **kwargs):
     for h in histories:
@@ -283,8 +310,9 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
                  epochs=100, early_stopping=True, patience=20, min_delta=0.0001,
                  use_char=False, crf=False, add_random_embedding=True, pretrained_embed_dim=300,
                  stack_cross=False, stack_double=False, rec_dropout=0.1,
-                 validation_split=0.1, output_dropout=False, optimizer='rmsprop',
-                 verbose=2):
+                 validation_split=0.1, output_dropout=False, optimizer='rmsprop', pos_dropout=None,
+                 char_dropout=False, all_spatial_dropout=True,
+                 print_summary=True, verbose=2):
     X_tr, X_te, y_tr, y_te, pos_tr, pos_te = words
     X_char_tr, X_char_te, _, _ = chars
     all_input_embeds = []
@@ -306,6 +334,8 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
     if use_pos:
         pos_input = Input(shape=(max_len,))
         pos_embed = Embedding(input_dim=n_pos+1, output_dim=10, input_length=max_len)(pos_input)
+        if pos_dropout is not None:
+            pos_embed = Dropout(pos_dropout)(pos_embed)
         all_input_embeds.append(pos_embed)
         all_inputs.append(pos_input)
         train_data.append(pos_tr)
@@ -317,12 +347,14 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
         # character LSTM to get word encodings by characters
         char_enc = TimeDistributed(Bidirectional(LSTM(units=10, return_sequences=False,
                                         recurrent_dropout=0.5)))(emb_char)
+        if char_dropout:
+            char_enc = SpatialDropout1D(0.3)(char_enc)
         all_input_embeds.append(char_enc)
         all_inputs.append(char_in)
         train_data.append(np.array(X_char_tr).reshape((len(X_char_tr), max_len, max_len_char)))
     if len(all_inputs)>1:
         model = Concatenate()(all_input_embeds)
-        if (use_char):
+        if (use_char and all_spatial_dropout):
             model = SpatialDropout1D(0.3)(model)
     else: 
         model = all_input_embeds[0]
@@ -369,6 +401,8 @@ def create_model(words, chars, max_len, n_words, n_tags, max_len_char, n_pos,
         es = [EarlyStopping(monitor=monitor, mode='max', verbose=1, patience=patience, restore_best_weights=True, min_delta=min_delta)]
     else:
         es=None
+    if print_summary:
+        print(model.summary())
     history = model.fit(train_data, np.array(y_tr), batch_size=32, epochs=epochs, 
                         validation_split=validation_split, verbose=verbose, callbacks=es)
     hist = pd.DataFrame(history.history)
@@ -422,6 +456,32 @@ base_configs_stack_freeze_input_dropout = [
             {'input_dropout': True, 'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all',  'trainable': False, 'stack_lstm': 2},
           ]
 
+base_configs_extra_pos_dropout = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all',  'trainable': False, 'stack_lstm': 2, 'all_spatial_dropout': True, 'pos_dropout': 0.3},
+        ]
+
+base_configs_pos_char_dropout = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': True, 'embedding_matrix': 'all',  'trainable': False, 'stack_lstm': 2, 'all_spatial_dropout': False, 'pos_dropout': 0.3, 'char_dropout': True},
+        ]
+
+base_configs_stack_no_emb = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': True, 'use_char': True, 'crf': True, 'use_pos': False, 'trainable': True, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': True, 'use_char': True, 'crf': True, 'use_pos': True, 'trainable': True, 'stack_lstm': 2},
+          ]
+
+predict_pos = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': True, 'use_char': True, 'crf': True, 'use_pos': False, 'trainable': True, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': True, 'use_char': False, 'crf': True, 'use_pos': False, 'trainable': True, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': False, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+          ]
+
+predict_pos_with_emb = [
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': True, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+            {'optimizer': 'adam', 'output_dropout': True, 'add_random_embedding': False, 'use_char': False, 'crf': True, 'use_pos': False, 'embedding_matrix': 'all', 'trainable': False, 'stack_lstm': 2},
+          ]
+
+
 def build_configs(configs, embedding_mats):
     new_configs = []
     for conf in configs:
@@ -446,7 +506,8 @@ def run_models(configs, splits, splits_char, embedding_mats,
                epochs=100, run_name=None, out_folder=None, 
                validation_split=0.1,
                skip_if_model_exists=True,
-               extra_predictions = None):
+               extra_predictions = None, print_summary=True,
+               evaluate_preds = True):
     if run_name is None or out_folder is None:
         raise ValueError
         
@@ -461,7 +522,7 @@ def run_models(configs, splits, splits_char, embedding_mats,
             continue
         mh = [create_model(split, char, max_len, n_words, n_tags, max_len_char,
                            n_pos, n_chars, embedding_mats, epochs=epochs,
-                           validation_split=validation_split, 
+                           validation_split=validation_split, print_summary=print_summary,
                            **conf) 
               for split, char in zip(splits, splits_char)]
         hists = [h for m, h in mh]
@@ -479,8 +540,9 @@ def run_models(configs, splits, splits_char, embedding_mats,
                     pickle.dump(curr_preds, f)
                     
         res = []
-        for cat_y_te, cat_preds in zip(all_cat_y_te, all_cat_preds):
-            res.append(evaluate(cat_y_te, cat_preds))
+        if evaluate_preds:
+            for cat_y_te, cat_preds in zip(all_cat_y_te, all_cat_preds):
+                res.append(evaluate(cat_y_te, cat_preds))
         with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_res.pkl'), 'wb') as f:
             pickle.dump([conf, res], f)
         with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_preds.pkl'), 'wb') as f:
@@ -496,3 +558,70 @@ def run_models(configs, splits, splits_char, embedding_mats,
         with open(os.path.join(out_folder, run_name+'_conf_res_preds_hist.pkl'), 'wb') as f:
             pickle.dump(list(zip(configs, results, preds, histories)), f)
     return configs, results, preds, histories
+
+
+from sklearn.metrics import accuracy_score
+    
+    
+def run_models_pos(configs, splits, splits_char, embedding_mats,
+               words, max_len, n_words, 
+               idx2word, idx2tag, n_tags, max_len_char, n_pos, n_chars, 
+               epochs=100, run_name=None, out_folder=None, 
+               validation_split=0.1,
+               skip_if_model_exists=True,
+               extra_predictions = None, print_summary=True,
+               evaluate_preds = True):
+    if run_name is None or out_folder is None:
+        raise ValueError
+        
+    results = []
+    preds = []
+    histories = []
+    
+    for i, conf in enumerate(configs):
+        model_output_path = os.path.join(out_folder, run_name+'-'+str(i)+'-model')
+        if skip_if_model_exists and os.path.exists(model_output_path):
+            print('skipping because', model_output_path, 'exists...')
+            continue
+        mh = [create_model(split, char, max_len, n_words, n_tags, max_len_char,
+                           n_pos, n_chars, embedding_mats, epochs=epochs,
+                           validation_split=validation_split, print_summary=print_summary,
+                           **conf) 
+              for split, char in zip(splits, splits_char)]
+        hists = [h for m, h in mh]
+        models = [m for m, h in mh]
+        plot_histories(hists, **conf)
+        all_cat_preds, all_cat_y_te, all_words_flat = predict_on_splits(zip(splits, splits_char), models, words, idx2word, idx2tag, **conf)
+        #all_cat_preds = [replace_pad_with_o(ll) for ll in all_cat_preds]
+        if extra_predictions is not None:
+            for k, data in enumerate(extra_predictions):
+                curr_preds = []
+                for model in models:
+                    ex_preds = predict_only(model, data, idx2word, idx2tag, **conf)
+                    curr_preds.append(ex_preds)
+                with open(os.path.join(out_folder, run_name+'-'+str(i)+'-extra_preds-'+str(k)+'.pkl'), 'wb') as f:
+                    pickle.dump(curr_preds, f)
+                    
+        res = []
+        if evaluate_preds:
+            for cat_y_te, cat_preds in zip(all_cat_y_te, all_cat_preds):
+                res.append(accuracy_score(cat_y_te, cat_preds))
+        with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_res.pkl'), 'wb') as f:
+            pickle.dump([conf, res], f)
+        with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_preds.pkl'), 'wb') as f:
+            pickle.dump([conf, all_cat_preds], f)
+        with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_hists.pkl'), 'wb') as f:
+            pickle.dump([conf, hists], f)
+        results.append(res)
+        preds.append(all_cat_preds)
+        histories .append(hists)
+        for j, model in enumerate(models):
+            model.save(model_output_path+'-'+str(j)+'.h5') # creates a HDF5 file
+            del model
+        with open(os.path.join(out_folder, run_name+'_conf_res_preds_hist.pkl'), 'wb') as f:
+            pickle.dump(list(zip(configs, results, preds, histories)), f)
+    return configs, results, preds, histories
+
+
+
+

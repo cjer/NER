@@ -1,14 +1,75 @@
 from collections import defaultdict
 from itertools import islice
 import pandas as pd
+from functools import lru_cache
 
-def evaluate_mentions(true_ments, pred_ments, examples=5, verbose=True):
+def fix_multi_biose(tag, multi_delim='^'):
+    parts = [x[0] for x in tag.split('^')]
+    cat = ''
+    
+    if '-' in tag:
+        cat = '-' + tag.split('-')[1][:3]
+        
+    bio = 'O'
+    if 'S' in parts:
+        bio = 'S'
+    elif 'B' in parts and 'E' in parts:
+        bio='S'
+    elif 'E' in parts:
+        bio = 'E'
+    elif 'B' in parts:
+        bio = 'B'
+    elif 'I' in parts:
+        bio = 'I'
+        
+    return bio+cat
+
+
+@lru_cache(32)
+def read_file_sents(path, comment_prefix='#', field_delim=' ', multi_delim='^', fix_multi_tag=True, sent_id_shift=0):
+    sents = []
+    for i, sent in enumerate(open(path, 'r', encoding='utf8').read().split('\n\n')):
+        if len(sent)>0:
+            cur = []
+            for line in sent.split('\n'):
+                if not line.startswith(comment_prefix):
+                    ls = line.split(field_delim)
+                    tok, tag = ls[0], ls[-1]
+                    if fix_multi_tag and multi_delim in tag:
+                        tag = fix_multi_biose(tag, multi_delim=multi_delim)
+                    cur.append((tok, tag))
+            sents.append((cur, i+sent_id_shift))
+    idx, values = zip(*sents)
+    sents = pd.Series(idx, values)
+    return sents
+
+
+def evaluate_files(gold_path, pred_path, fix_multi_tag_pred=True, truncate=None):
+    gold_sents = read_file_sents(gold_path)
+    pred_sents = read_file_sents(pred_path)
+    gold_mentions = sents_to_mentions(gold_sents, truncate=truncate)
+    pred_mentions = sents_to_mentions(pred_sents, truncate=truncate)
+    return evaluate_mentions(gold_mentions, pred_mentions, verbose=False)
+
+
+def evaluate_mentions(true_ments, pred_ments, examples=5, verbose=True, return_tpc=False):
     t, p = set(true_ments), set(pred_ments)
     correct = p.intersection(t)
+    
+    if len(p)==0:
+        prec=-1
+    else:
+        prec = len(correct) / len(p)
+    
+    if len(t)==0:
+        recall=-1
+    else:
+        recall = len(correct) / len(t)
 
-    prec = len(correct) / len(t)
-    recall = len(correct) / len(p)
-    f1 = 2*prec*recall/(prec+recall)
+    if prec+recall==0:
+        f1=-1
+    else:
+        f1 = 2*prec*recall/(prec+recall)
     if verbose:
         print(len(t), 'mentions,', len(p), 'found,', len(correct), 'correct.')
         print('Precision:', round(prec, 2))
@@ -16,7 +77,10 @@ def evaluate_mentions(true_ments, pred_ments, examples=5, verbose=True):
         print('F1:       ', round(f1, 2))
         print('FP ex.:', [e[1] for e in list(p-t)[:examples]])
         print('FN ex.:', [e[1] for e in list(t-p)[:examples]])
-    return prec, recall, f1
+    if return_tpc:
+        return prec, recall, f1, len(t), len(p), len(correct)
+    else:
+        return prec, recall, f1
         
         
 def sent_to_mentions_dict(sent, sent_id, truncate=80):
@@ -31,6 +95,8 @@ def sent_to_mentions_dict(sent, sent_id, truncate=80):
     for tok, bio, cat in it:
         if bio=='S':
             mentions[(sent_id, tok, cat)]+=1
+            current_mention= None
+            current_cat = None
         if bio=='B':
             current_mention = [tok]
             current_cat = cat
@@ -39,6 +105,8 @@ def sent_to_mentions_dict(sent, sent_id, truncate=80):
         if bio=='E' and current_mention is not None:
             current_mention.append(tok)
             mentions[(sent_id, ' '.join(current_mention), current_cat)]+=1
+            current_mention= None
+            current_cat = None
         if bio=='O':
             current_mention = None
             current_cat = None
