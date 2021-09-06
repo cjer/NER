@@ -506,8 +506,12 @@ def run_models(configs, splits, splits_char, embedding_mats,
                epochs=100, run_name=None, out_folder=None, 
                validation_split=0.1,
                skip_if_model_exists=True,
+<<<<<<< HEAD
                extra_predictions = None, print_summary=True,
                evaluate_preds = True):
+=======
+               extra_predictions = None, print_summary=True):
+>>>>>>> 7f8b8e670dbaf528ad475bbe64aec6d65d90b9d1
     if run_name is None or out_folder is None:
         raise ValueError
         
@@ -623,5 +627,67 @@ def run_models_pos(configs, splits, splits_char, embedding_mats,
     return configs, results, preds, histories
 
 
+<<<<<<< HEAD
 
 
+=======
+from sklearn.metrics import accuracy_score
+    
+    
+def run_models_pos(configs, splits, splits_char, embedding_mats,
+               words, max_len, n_words, 
+               idx2word, idx2tag, n_tags, max_len_char, n_pos, n_chars, 
+               epochs=100, run_name=None, out_folder=None, 
+               validation_split=0.1,
+               skip_if_model_exists=True,
+               extra_predictions = None, print_summary=True):
+    if run_name is None or out_folder is None:
+        raise ValueError
+        
+    results = []
+    preds = []
+    histories = []
+    
+    for i, conf in enumerate(configs):
+        model_output_path = os.path.join(out_folder, run_name+'-'+str(i)+'-model')
+        if skip_if_model_exists and os.path.exists(model_output_path):
+            print('skipping because', model_output_path, 'exists...')
+            continue
+        mh = [create_model(split, char, max_len, n_words, n_tags, max_len_char,
+                           n_pos, n_chars, embedding_mats, epochs=epochs,
+                           validation_split=validation_split, print_summary=print_summary,
+                           **conf) 
+              for split, char in zip(splits, splits_char)]
+        hists = [h for m, h in mh]
+        models = [m for m, h in mh]
+        plot_histories(hists, **conf)
+        all_cat_preds, all_cat_y_te, all_words_flat = predict_on_splits(zip(splits, splits_char), models, words, idx2word, idx2tag, **conf)
+        #all_cat_preds = [replace_pad_with_o(ll) for ll in all_cat_preds]
+        if extra_predictions is not None:
+            for k, data in enumerate(extra_predictions):
+                curr_preds = []
+                for model in models:
+                    ex_preds = predict_only(model, data, idx2word, idx2tag, **conf)
+                    curr_preds.append(ex_preds)
+                with open(os.path.join(out_folder, run_name+'-'+str(i)+'-extra_preds-'+str(k)+'.pkl'), 'wb') as f:
+                    pickle.dump(curr_preds, f)
+                    
+        res = []
+        for cat_y_te, cat_preds in zip(all_cat_y_te, all_cat_preds):
+            res.append(accuracy_score(cat_y_te, cat_preds))
+        with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_res.pkl'), 'wb') as f:
+            pickle.dump([conf, res], f)
+        with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_preds.pkl'), 'wb') as f:
+            pickle.dump([conf, all_cat_preds], f)
+        with open(os.path.join(out_folder, run_name+'-'+str(i)+'-conf_hists.pkl'), 'wb') as f:
+            pickle.dump([conf, hists], f)
+        results.append(res)
+        preds.append(all_cat_preds)
+        histories .append(hists)
+        for j, model in enumerate(models):
+            model.save(model_output_path+'-'+str(j)+'.h5') # creates a HDF5 file
+            del model
+        with open(os.path.join(out_folder, run_name+'_conf_res_preds_hist.pkl'), 'wb') as f:
+            pickle.dump(list(zip(configs, results, preds, histories)), f)
+    return configs, results, preds, histories
+>>>>>>> 7f8b8e670dbaf528ad475bbe64aec6d65d90b9d1

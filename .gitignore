@@ -1,3 +1,5 @@
+.ipynb_checkpoints
+__pycache__
 data/*
 hebtb_spmrl/*
 HTB_chunked_2/*

@@ -44,11 +44,11 @@ def read_file_sents(path, comment_prefix='#', field_delim=' ', multi_delim='^', 
     return sents
 
 
-def evaluate_files(gold_path, pred_path, fix_multi_tag_pred=True, truncate=None):
+def evaluate_files(gold_path, pred_path, fix_multi_tag_pred=True, truncate=None, ignore_cat=False, str_join_char=' '):
     gold_sents = read_file_sents(gold_path)
     pred_sents = read_file_sents(pred_path)
-    gold_mentions = sents_to_mentions(gold_sents, truncate=truncate)
-    pred_mentions = sents_to_mentions(pred_sents, truncate=truncate)
+    gold_mentions = sents_to_mentions(gold_sents, truncate=truncate, ignore_cat=ignore_cat, str_join_char=str_join_char)
+    pred_mentions = sents_to_mentions(pred_sents, truncate=truncate, ignore_cat=ignore_cat, str_join_char=str_join_char)
     return evaluate_mentions(gold_mentions, pred_mentions, verbose=False)
 
 
@@ -83,7 +83,7 @@ def evaluate_mentions(true_ments, pred_ments, examples=5, verbose=True, return_t
         return prec, recall, f1
         
         
-def sent_to_mentions_dict(sent, sent_id, truncate=80):
+def sent_to_mentions_dict(sent, sent_id, truncate=80, ignore_cat=False, str_join_char=' '):
     mentions = defaultdict(lambda: 0)
     current_mention= None
     current_cat = None
@@ -93,6 +93,8 @@ def sent_to_mentions_dict(sent, sent_id, truncate=80):
         it = sent
         
     for tok, bio, cat in it:
+        if ignore_cat:
+            cat = 'NAN'
         if bio=='S':
             mentions[(sent_id, tok, cat)]+=1
             current_mention= None
@@ -104,7 +106,7 @@ def sent_to_mentions_dict(sent, sent_id, truncate=80):
             current_mention.append(tok)
         if bio=='E' and current_mention is not None:
             current_mention.append(tok)
-            mentions[(sent_id, ' '.join(current_mention), current_cat)]+=1
+            mentions[(sent_id, str_join_char.join(current_mention), current_cat)]+=1
             current_mention= None
             current_cat = None
         if bio=='O':
@@ -137,9 +139,9 @@ def get_sents_fixed(sents):
     sf = list(zip(list(sents.index), sf))
     return sf
 
-def sents_to_mentions(sents, truncate=80):
+def sents_to_mentions(sents, truncate=80, ignore_cat=False, str_join_char=' '):
     sents_fixed = get_sents_fixed(sents)
-    ments = [sent_to_mentions_dict(sent, sent_id, truncate) for sent_id, sent in sents_fixed]
+    ments = [sent_to_mentions_dict(sent, sent_id, truncate, ignore_cat=ignore_cat, str_join_char=str_join_char) for sent_id, sent in sents_fixed]
     ment_set = get_ment_set(ments)
     return ment_set
 
